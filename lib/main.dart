@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:expression_language/expression_language.dart';
 
 void main() {
   runApp(MyApp());
@@ -25,86 +26,122 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+class _operations {
+  final int multiply = 1;
+  final int divide = 1;
+  final int add = 2;
+  final int subtract = 2;
+}
+
+var expressionGrammarDefinition = ExpressionGrammarParser({});
+var parser = expressionGrammarDefinition.build();
+
 class _MyHomePageState extends State<MyHomePage> {
   String display = "0";
-  String valA;
-  String valB;
-  String operation;
+  List <String> values = [];
+  List <String> operations = [];
   bool entered = false;
+  bool numPress = false;
+  bool opPress = false;
+
+
 
   void _handleNumberPress(val) {
     if (entered == true) return;
 
-    if (display == "0") {
+    if (values.length == 0 && display == "0"){
       setState(() {
         display = val;
-        valA = val;
+        values.add(val);
       });
-    } else if (valA != null && valB == null && operation == null) {
+    } else if (values.length == 1 && operations.length == 0 && numPress == true){
       setState(() {
         display = display + val;
-        valA = valA + val;
+        values[0] = values[0] + val;
       });
-    } else if (valA != null && operation != null && valB == null){
+    } else if (operations.length > 0 && numPress == false){
       setState(() {
         display = val;
-        valB = val;
+        values.add(val);
       });
-    } else if (valA != null && operation != null && valB != null){
+    } else if (operations.length > 0 && numPress == true){
       setState(() {
         display = display + val;
-        valB = valB + val;
+        values[operations.length - 1] = values[operations.length - 1] + val;
       });
     }
+
+    setState(() {
+      numPress = true;
+      opPress = false;
+    });
   }
 
   void _enter() {
-    if (valA == null || valB == null) return;
-    var num1 = int.tryParse(valA);
-    var num2 = int.tryParse(valB);
+    if (values.length < 2) return;
 
-    setState(() => entered = true);
+    setState(() {
+      entered = true;
+      numPress = false;
+    });
 
-    switch (operation) {
-      case "+":
-        setState(() {
-          display = (num1 + num2).toString();
-        });
-        break;
-      case "-":
-        setState(() {
-          display = (num1 - num2).toString();
-        });
-        break;
-      case "*":
-        setState(() {
-          display = (num1 * num2).toString();
-        });
-        break;
-      case "/":
-        setState(() {
-          display = (num1 / num2).toString();
-        });
-        break;
+    if (values.length == 2){
+      var string = values[0] + operations[0] + values[1];
+      var result = parser.parse(string);
+      var expression = result.value as Expression;
+      var value = expression.evaluate();
+      setState(() => display = value.toString());
+    } else {
+      for (var i = 0; i < operations.length; i++){
+        if (operations[i] == "*" || operations[i] == "/"){
+          var string = values[i] + operations[i] + values[i+1];
+          var result = parser.parse(string);
+          var expression = result.value as Expression;
+          var value = expression.evaluate();
+          setState(() {
+            values.replaceRange(i, i+2, [value.toString()]);
+            operations.removeAt(i);
+          });
+        }
+      }
+      var resultArr = [];
+
+      for (var i = 0; i < values.length; i ++){
+        if (i < operations.length){
+          resultArr.add(values[i]);
+          resultArr.add(operations[i]);
+        } else {
+          resultArr.add(values[i]);
+        }
+      }
+      var result = parser.parse(resultArr.join(""));
+      var expression = result.value as Expression;
+      var value = expression.evaluate();
+      setState(() {
+        display = value.toString();
+      });
     }
   }
 
   void _setOperation(op) {
     setState(() {
-      operation = op;
-      entered = false;
-      if (valA != null && valB != null) {
-        valA = display;
-        valB = null;
+      if (opPress == false){
+        operations.add(op);
+      } else {
+        operations.replaceRange(operations.length-1, operations.length-1, [op]);
       }
+      entered = false;
+      numPress = false;
     });
+    setState(() => opPress = true);
   }
 
   void _clear() {
     setState(() {
       display = "0";
-      entered = false;
-      valA = valB = operation = null;
+      entered = numPress = opPress = false;
+      values = [];
+      operations = [];
     });
   }
 
@@ -123,7 +160,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _display() {
-    List values = [valA, operation, valB];
     return Stack(
       children: <Widget>[
         Container(
@@ -139,14 +175,14 @@ class _MyHomePageState extends State<MyHomePage> {
             textAlign: TextAlign.right,
           ),
         ),
-        Text(
-          values
-              .where((element) => element != null && element != "0")
-              .join(" "),
-          style: TextStyle(fontSize: 16.0, color: Colors.black),
-          textAlign: TextAlign.left,
-          textDirection: TextDirection.ltr,
-        ),
+//        Text(
+//          values
+//              .where((element) => element != null && element != "0")
+//              .join(" "),
+//          style: TextStyle(fontSize: 16.0, color: Colors.black),
+//          textAlign: TextAlign.left,
+//          textDirection: TextDirection.ltr,
+//        ),
       ],
     );
   }
